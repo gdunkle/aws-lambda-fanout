@@ -1,14 +1,22 @@
-# Welcome to your CDK TypeScript project!
+# aws-lambda-fanout
 
-This is a blank project for TypeScript development with CDK.
+CDK project that sets up the following serverless architecture to test out lambda based kinesis consumers
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+![](./images/Architecture.drawio.png)
 
-## Useful commands
+Also creates a dashboard to monitor called "AwsLambdaFanout" to monitor that messages get all the way through the pipeline
 
- * `npm run build`   compile typescript to js
- * `npm run watch`   watch for changes and compile
- * `npm run test`    perform the jest unit tests
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk synth`       emits the synthesized CloudFormation template
+![](./images/Dashboard.png)
+
+## Testing
+
+Included is a [JMeter test script](./Test.jmx). 
+
+To run this script you have to deploy the cdk project and then replace the api endpoint in the test script.
+
+## Commands
+* `npm install`     install dependencies
+* `npm run build`   compile typescript to js
+* `cdk deploy -c account=<your_account> -c region=<your_region>` deploy to your aws account
+
+
