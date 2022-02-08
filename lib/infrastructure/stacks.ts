@@ -6,7 +6,7 @@ import {CfnIntegration, CfnRoute, CfnStage} from "aws-cdk-lib/aws-apigatewayv2";
 import {Stream} from "aws-cdk-lib/aws-kinesis";
 import {Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {NodejsFunction} from "aws-cdk-lib/aws-lambda-nodejs";
-import {Runtime, StartingPosition, Tracing} from "aws-cdk-lib/aws-lambda";
+import {CfnEventSourceMapping, EventSourceMapping, Runtime, StartingPosition, Tracing} from "aws-cdk-lib/aws-lambda";
 import {KinesisEventSource} from "aws-cdk-lib/aws-lambda-event-sources";
 import * as path from "path";
 import {AttributeType, BillingMode, Table, TableEncryption} from "aws-cdk-lib/aws-dynamodb";
@@ -133,14 +133,37 @@ export class Stacks extends Stack {
 
             startingPosition: StartingPosition.LATEST
         }))
-        downstreamLambda.addEventSource(new KinesisEventSource(outStream, {
+        // const downstreamEventSource=new KinesisEventSource(outStream, {
+        //     batchSize: 10,
+        //
+        //     retryAttempts: 3,
+        //
+        //     startingPosition: StartingPosition.LATEST,
+        //
+        // })
+        const downstreamEventSource=new EventSourceMapping(this,"outstreamMapping",{
+            eventSourceArn: outStream.streamArn,
+            target: downstreamLambda,
+            bisectBatchOnError: false,
+            enabled: true,
+
             batchSize: 10,
 
             retryAttempts: 3,
 
-            startingPosition: StartingPosition.LATEST
-        }))
+            startingPosition: StartingPosition.LATEST,
 
+        })
+
+
+        const cfnDownstreamEventSource=downstreamEventSource.node.defaultChild as CfnEventSourceMapping
+        cfnDownstreamEventSource.addPropertyOverride('FilterCriteria', {
+            "Filters": [
+                {
+                    "Pattern": "{  \"partitionKey\":  [ \"1\" ] }"
+                }
+            ]
+        })
         inStream.grantRead(fanOutLambda)
         inStream.grantWrite(apiGatewayRole)
         outStream.grantWrite(fanOutLambda)
