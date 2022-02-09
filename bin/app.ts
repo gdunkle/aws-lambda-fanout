@@ -4,6 +4,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Stacks } from '../lib/infrastructure/stacks';
 import {LogGroupNamingConventions} from "../lib/infrastructure/aspects";
 import {Aspects} from "aws-cdk-lib";
+import {AwsSolutionsChecks} from "cdk-nag";
 
 const app = new cdk.App();
 const env={
@@ -16,4 +17,4 @@ if (env.account==null || env.region==null){
 new Stacks(app, 'AwsLambdaFanoutStack', {
     env: env
 });
-// Aspects.of(app).add(new LogGroupNamingConventions())
+Aspects.of(app).add(new AwsSolutionsChecks())

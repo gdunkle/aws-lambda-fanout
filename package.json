@@ -30,6 +30,7 @@
     "aws-kinesis-agg": "^4.2.4",
     "aws-lambda": "^1.0.7",
     "aws-xray-sdk": "^3.3.4",
+    "cdk-nag": "^2.4.54",
     "constructs": "^10.0.0",
     "source-map-support": "^0.5.16"
   }

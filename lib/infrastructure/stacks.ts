@@ -3,7 +3,7 @@ import {Construct} from 'constructs';
 import {LogGroup} from "aws-cdk-lib/aws-logs";
 import {HttpApi, HttpConnectionType} from "@aws-cdk/aws-apigatewayv2-alpha";
 import {CfnIntegration, CfnRoute, CfnStage} from "aws-cdk-lib/aws-apigatewayv2";
-import {Stream} from "aws-cdk-lib/aws-kinesis";
+import {Stream, StreamEncryption} from "aws-cdk-lib/aws-kinesis";
 import {Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {NodejsFunction} from "aws-cdk-lib/aws-lambda-nodejs";
 import {CfnEventSourceMapping, EventSourceMapping, Runtime, StartingPosition, Tracing} from "aws-cdk-lib/aws-lambda";
@@ -17,6 +17,7 @@ import {
     PeriodOverride,
     SingleValueWidget
 } from "aws-cdk-lib/aws-cloudwatch";
+import {NagSuppressions} from "cdk-nag";
 
 ;
 
@@ -63,7 +64,9 @@ export class Stacks extends Stack {
             assumedBy: new ServicePrincipal('apigateway.amazonaws.com')
         });
 
-        const inStream = new Stream(this, 'InStream', {});
+        const inStream = new Stream(this, 'InStream', {
+            encryption: StreamEncryption.MANAGED
+        });
 
         const integration = new CfnIntegration(this, "kinesis-integration", {
             apiId: api.apiId,
@@ -86,7 +89,9 @@ export class Stacks extends Stack {
             target: `integrations/${integration.ref}`
         })
         route.addDependsOn(integration)
-        const outStream = new Stream(this, 'OutStream', {});
+        const outStream = new Stream(this, 'OutStream', {
+            encryption: StreamEncryption.MANAGED
+        });
         const fanOutLambda = new NodejsFunction(this, "fanout-function", {
             memorySize: 256,
             timeout: Duration.seconds(5),
@@ -133,26 +138,14 @@ export class Stacks extends Stack {
 
             startingPosition: StartingPosition.LATEST
         }))
-        // const downstreamEventSource=new KinesisEventSource(outStream, {
-        //     batchSize: 10,
-        //
-        //     retryAttempts: 3,
-        //
-        //     startingPosition: StartingPosition.LATEST,
-        //
-        // })
         const downstreamEventSource=new EventSourceMapping(this,"outstreamMapping",{
             eventSourceArn: outStream.streamArn,
             target: downstreamLambda,
             bisectBatchOnError: false,
             enabled: true,
-
             batchSize: 10,
-
             retryAttempts: 3,
-
             startingPosition: StartingPosition.LATEST,
-
         })
 
 
@@ -160,7 +153,7 @@ export class Stacks extends Stack {
         cfnDownstreamEventSource.addPropertyOverride('FilterCriteria', {
             "Filters": [
                 {
-                    "Pattern": "{  \"partitionKey\":  [ \"1\" ] }"
+                    "Pattern": "{  \"partitionKey\":  [ {\"prefix\": \"1_\"} ] }"
                 }
             ]
         })
@@ -277,7 +270,16 @@ export class Stacks extends Stack {
             value: `${api.apiEndpoint}/record`,
             description: "The api endpoint to send records to",
         })
+        //CDK Nag Suppressions
+        NagSuppressions.addResourceSuppressionsByPath(this,"/AwsLambdaFanoutStack/api-gateway-role/DefaultPolicy/Resource",[{ id: "AwsSolutions-IAM5", reason: "Following directions here https://docs.aws.amazon.com/apigateway/latest/developerguide/integrating-api-with-aws-services-kinesis.html" }])
+        NagSuppressions.addResourceSuppressionsByPath(this,"/AwsLambdaFanoutStack/fanout-function/ServiceRole/Resource",[{ id: "AwsSolutions-IAM4", reason: "I'm ok using managed policies for this example" }])
+        NagSuppressions.addResourceSuppressionsByPath(this,"/AwsLambdaFanoutStack/fanout-function/ServiceRole/DefaultPolicy/Resource",[{ id: "AwsSolutions-IAM5", reason: "Wildcard is for xray support" }])
 
+        NagSuppressions.addResourceSuppressionsByPath(this,"/AwsLambdaFanoutStack/downstream-function/ServiceRole/Resource",[{ id: "AwsSolutions-IAM4", reason: "I'm ok using managed policies for this example" }])
+        NagSuppressions.addResourceSuppressionsByPath(this,"AwsLambdaFanoutStack/downstream-function/ServiceRole/DefaultPolicy/Resource",[{ id: "AwsSolutions-IAM5", reason: "Wildcard is for xray support" }])
+        NagSuppressions.addResourceSuppressionsByPath(this,"/AwsLambdaFanoutStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource",[{ id: "AwsSolutions-IAM4", reason: "I'm ok using managed policies for this example" }])
+        NagSuppressions.addResourceSuppressionsByPath(this,"/AwsLambdaFanoutStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource",[{ id: "AwsSolutions-IAM5", reason: "Wildcard is for log rentetion support" }])
+        NagSuppressions.addResourceSuppressionsByPath(this,"/AwsLambdaFanoutStack/kinesis-route",[{ id: "AwsSolutions-APIG4", reason: "I'm ok with no api authorization for this example" }])
     }
 
 }

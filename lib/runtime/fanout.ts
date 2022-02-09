@@ -24,18 +24,19 @@ export const lambdaHandler = xrayScope((segment) => async (
             payload = JSON.stringify(value)
             console.log(`Fanout payload:${payload}`);
             const buffer = Buffer.from(payload)
+            const partitionKey = `${incoming.kinesis.partitionKey}_${Math.random().toString(36).substr(2, 5)}`
             const recordPayload={
                 data: payload,
                 approximateArrivalTimestamp: incoming.kinesis.approximateArrivalTimestamp,
-                partitionKey: incoming.kinesis.partitionKey,
+                partitionKey: partitionKey,
                 kinesisSchemaVersion: incoming.kinesis.kinesisSchemaVersion,
                 sequenceNumber: incoming.kinesis.sequenceNumber
 
             } as KinesisStreamRecordPayload
-            if(partitions.has(incoming.kinesis.partitionKey)){
-                partitions.get(incoming.kinesis.partitionKey)?.push(recordPayload)
+            if(partitions.has(partitionKey)){
+                partitions.get(partitionKey)?.push(recordPayload)
             }else{
-                partitions.set(incoming.kinesis.partitionKey,[recordPayload])
+                partitions.set(partitionKey,[recordPayload])
             }
 
         })
